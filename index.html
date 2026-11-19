@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>日記三明治 Sandwich Diary</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Google Fonts: 圓潤溫暖字體 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            maru: ['"Zen Maru Gothic"', 'sans-serif'],
+          },
+          colors: {
+            bread: {
+              light: '#F6E58D',
+              crust: '#D4A373',
+              dark: '#BC6C25',
+            },
+            warmbg: '#FFFDF9',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Zen Maru Gothic', sans-serif; background-color: #F4EFE6; }
+    .sandwich-layer-enter-active { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .sandwich-layer-enter-from { opacity: 0; transform: translateY(-20px) scale(0.9); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="flex justify-center min-h-screen text-stone-800">
+
+  <div id="app" class="w-full max-w-md bg-warmbg min-h-screen flex flex-col shadow-2xl relative pb-24">
+    
+    <!-- 頂部導航 -->
+    <header class="px-5 py-3.5 flex items-center justify-between border-b border-stone-200/70 bg-warmbg/90 backdrop-blur sticky top-0 z-20">
+      <div class="flex items-center gap-2">
+        <h1 class="text-lg font-bold tracking-wide text-bread-dark">日記三明治</h1>
+        <span class="text-[11px] font-medium px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full">
+          {{ currentDateText }}
+        </span>
+      </div>
+
+      <!-- 右上角三明治按鈕：點擊回製作首頁 -->
+      <button 
+        @click="goHome" 
+        title="點擊回首頁"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100/70 hover:bg-amber-200/80 active:scale-95 transition border border-amber-300 shadow-sm group"
+      >
+        <span class="text-xl group-hover:rotate-12 transition-transform">🥪</span>
+        <span class="text-xs font-bold text-amber-900">回首頁</span>
+      </button>
+    </header>
+
+    <!-- 主內容區 -->
+    <main class="flex-1 overflow-y-auto no-scrollbar p-5">
+
+      <!-- ================= 頁面 1: 製作首頁 (Maker) ================= -->
+      <section v-if="currentTab === 'maker'" class="space-y-6">
+        
+        <!-- 三明治即時堆疊畫布 -->
+        <div class="bg-amber-50/70 border border-amber-200/60 rounded-3xl p-5 flex flex-col items-center justify-center min-h-[220px] shadow-inner relative overflow-hidden">
+          <span class="text-[10px] text-stone-400 absolute top-3 left-4 font-bold tracking-wider uppercase">即時堆疊預覽</span>
+          
+          <div class="w-full max-w-[240px] flex flex-col items-center gap-1.5 py-3">
+            <!-- 頂層麵包 -->
+            <div class="w-full h-8 bg-amber-300 border-2 border-bread-crust rounded-t-2xl shadow-md flex items-center justify-center">
+              <span class="text-[10px] text-amber-900 font-bold opacity-70">✨ 頂層封頂</span>
+            </div>
+
+            <!-- 配料堆疊層 -->
+            <transition-group name="sandwich-layer">
+              <div 
+                v-for="(item, index) in currentSandwich.ingredients" 
+                :key="item.id + index"
+                class="w-[94%] h-6 rounded-lg flex items-center justify-between px-3 text-xs font-bold text-white shadow-sm border"
+                :style="{ backgroundColor: item.color, borderColor: item.borderColor }"
+              >
+                <span>{{ item.icon }} {{ item.name }}</span>
+                <button @click="removeIngredient(index)" class="text-xs hover:scale-125 transition text-white/90">✕</button>
+              </div>
+            </transition-group>
+
+            <div v-if="currentSandwich.ingredients.length === 0" class="text-stone-300 text-xs py-2">
+              （點擊下方心情配料夾進來吧！）
+            </div>
+
+            <!-- 底層麵包 -->
+            <div class="w-full h-8 bg-amber-200 border-2 border-bread-crust rounded-b-2xl shadow-md flex items-center justify-center">
+              <span class="text-[10px] text-amber-900 font-bold opacity-70">🍞 今日經歷</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 步驟 1: 今日基底 -->
+        <div class="space-y-2">
+          <label class="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+            <span>🍞</span> 1. 今日經歷基底（底層麵包）
+          </label>
+          <textarea 
+            v-model="currentSandwich.baseStory"
+            rows="3" 
+            placeholder="今天發生了什麼事情？去了哪裡、遇見了誰，或經歷了哪些特別的時刻..."
+            class="w-full p-3 text-sm rounded-2xl bg-white border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-400/50 shadow-sm transition"
+          ></textarea>
+        </div>
+
+        <!-- 步驟 2: 心情配料庫 -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+              <span>🥬</span> 2. 夾入心情配料（可複選）
+            </label>
+            <span class="text-[11px] text-stone-400">已夾 {{ currentSandwich.ingredients.length }}/6 片</span>
+          </div>
+          
+          <div class="grid grid-cols-3 gap-2">
+            <button 
+              v-for="ing in availableIngredients" 
+              :key="ing.id"
+              @click="addIngredient(ing)"
+              class="p-2.5 rounded-2xl border flex flex-col items-center justify-center gap-1 active:scale-95 transition-all text-stone-700 hover:border-amber-400 bg-white border-stone-200"
+            >
+              <span class="text-2xl">{{ ing.icon }}</span>
+              <span class="text-xs font-bold">{{ ing.name }}</span>
+              <span class="text-[10px] text-stone-400">{{ ing.desc }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 步驟 3: 封頂寄語 -->
+        <div class="space-y-2">
+          <label class="text-xs font-bold text-stone-700 flex items-center gap-1.5">
+            <span>🥖</span> 3. 一句話總結 / 給明天（頂層麵包）
+          </label>
+          <input 
+            v-model="currentSandwich.topSummary"
+            type="text" 
+            placeholder="蓋上三明治！寫下一句肯定、鼓勵或感恩..." 
+            class="w-full p-3 text-sm rounded-2xl bg-white border border-stone-200 focus:outline-none focus:ring-2 focus:ring-amber-400/50 shadow-sm transition"
+          />
+        </div>
+
+        <button 
+          @click="saveSandwich"
+          :disabled="!canSave"
+          class="w-full py-3.5 rounded-2xl bg-bread-dark text-white font-bold tracking-wider shadow-lg shadow-amber-900/20 active:scale-98 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+        >
+          <span>📦</span> 包裝並放入日記冰箱
+        </button>
+
+      </section>
+
+      <!-- ================= 頁面 2: 食材庫 (Pantry) ================= -->
+      <section v-if="currentTab === 'ingredients'" class="space-y-5">
+        <div>
+          <h2 class="text-base font-bold text-stone-800">情緒食材圖鑑</h2>
+          <p class="text-xs text-stone-500">每一種配料都代表著你的心靈成分與情緒密碼。</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3">
+          <div 
+            v-for="ing in availableIngredients" 
+            :key="ing.id"
+            class="p-4 bg-white rounded-2xl border border-stone-200/80 shadow-sm flex items-center gap-4"
+          >
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-inner" :style="{ backgroundColor: ing.color + '25' }">
+              {{ ing.icon }}
+            </div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-bold text-stone-800">{{ ing.name }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-medium" :style="{ backgroundColor: ing.color + '20', color: ing.borderColor }">
+                  心理象徵
+                </span>
+              </div>
+              <p class="text-xs text-stone-500 mt-0.5">{{ ing.longDesc }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 即將解鎖的特殊限定食材 -->
+        <div class="bg-amber-50/60 border border-dashed border-amber-300 rounded-2xl p-4 space-y-2">
+          <div class="flex items-center gap-2">
+            <span class="text-base">🔒</span>
+            <span class="text-xs font-bold text-amber-900">未解鎖限定食材</span>
+          </div>
+          <p class="text-xs text-stone-500">連續記錄滿 7 天，即可解鎖「🥑 鬆弛感酪梨」與「🍯 甜蜜蜂蜜醬」！</p>
+        </div>
+      </section>
+
+      <!-- ================= 頁面 3: 日記冰箱 (Fridge / Showcase) ================= -->
+      <section v-if="currentTab === 'fridge'" class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-bold text-stone-800">日記冰箱（{{ diaryList.length }} 份保存中）</h2>
+          <span class="text-xs text-stone-400">保鮮度 100%</span>
+        </div>
+
+        <div v-if="diaryList.length === 0" class="text-center py-20 space-y-3">
+          <div class="text-5xl">🧊</div>
+          <p class="text-sm text-stone-400">冰箱目前空空的，快去首頁做個三明治吧！</p>
+          <button @click="goHome" class="text-xs font-bold px-4 py-2 bg-amber-100 text-amber-800 rounded-full">
+            製作第一份三明治
+          </button>
+        </div>
+
+        <div v-else class="space-y-4">
+          <div 
+            v-for="item in diaryList" 
+            :key="item.id"
+            class="bg-white rounded-3xl p-4 border border-stone-200 shadow-sm space-y-3"
+          >
+            <!-- 頂部資訊 -->
+            <div class="flex justify-between items-center border-b border-stone-100 pb-2">
+              <span class="text-xs font-bold text-stone-500">{{ item.date }}</span>
+              <button @click="deleteItem(item.id)" class="text-stone-300 hover:text-red-400 text-xs">移除</button>
+            </div>
+
+            <!-- 切面示意圖與總結 -->
+            <div class="flex items-center gap-3">
+              <div class="w-14 h-14 bg-amber-50 rounded-2xl flex flex-col justify-center items-center gap-0.5 p-1 border border-amber-200 shadow-sm flex-shrink-0">
+                <div class="w-10 h-2 bg-amber-300 rounded-t-sm"></div>
+                <div 
+                  v-for="(layer, idx) in item.ingredients.slice(0, 3)" 
+                  :key="idx" 
+                  class="w-9 h-1.5 rounded-sm"
+                  :style="{ backgroundColor: layer.color }"
+                ></div>
+                <div class="w-10 h-2 bg-amber-200 rounded-b-sm"></div>
+              </div>
+              
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-stone-800 truncate">「{{ item.topSummary || '今日未留下寄語' }}」</p>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <span 
+                    v-for="ing in item.ingredients" 
+                    :key="ing.id" 
+                    class="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-600"
+                  >
+                    {{ ing.icon }} {{ ing.name }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 底層經歷全文 -->
+            <p class="text-xs text-stone-600 bg-stone-50 p-3 rounded-xl leading-relaxed whitespace-pre-wrap">
+              {{ item.baseStory }}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 頁面 4: 我的帳戶 (Account) ================= -->
+      <section v-if="currentTab === 'account'" class="space-y-6">
+        <!-- 主廚資訊卡 -->
+        <div class="bg-gradient-to-br from-amber-100/80 to-amber-200/50 p-5 rounded-3xl border border-amber-300 flex items-center gap-4">
+          <div class="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center text-3xl border-2 border-amber-400">
+            👨‍🍳
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-stone-800">吐司實習主廚</h2>
+            <p class="text-xs text-stone-600 mt-0.5">累計做出 {{ diaryList.length }} 份生活三明治</p>
+            <div class="flex items-center gap-2 mt-2">
+              <span class="text-[10px] bg-amber-300/80 text-amber-900 font-bold px-2 py-0.5 rounded-full">
+                🔥 連續記錄 {{ consecutiveDays }} 天
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 情緒營養分析摘要 -->
+        <div class="bg-white p-5 rounded-3xl border border-stone-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-stone-800">情緒營養成分分析</h3>
+            <span class="text-xs text-stone-400">總體統計</span>
+          </div>
+
+          <div class="space-y-2.5">
+            <div v-for="stat in ingredientStats" :key="stat.id" class="space-y-1">
+              <div class="flex justify-between text-xs">
+                <span>{{ stat.icon }} {{ stat.name }}</span>
+                <span class="text-stone-400">{{ stat.count }} 片 ({{ stat.percentage }}%)</span>
+              </div>
+              <div class="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-500" :style="{ width: stat.percentage + '%', backgroundColor: stat.color }"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 主廚點評 -->
+          <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200/70 text-xs text-amber-900 leading-relaxed">
+            💡 <strong>身心診斷：</strong>{{ nutritionInsight }}
+          </div>
+        </div>
+
+        <!-- 主廚成就徽章 -->
+        <div class="space-y-3">
+          <h3 class="text-sm font-bold text-stone-800">成就徽章</h3>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="p-3 bg-white rounded-2xl border border-stone-200 text-center space-y-1">
+              <span class="text-2xl">🌱</span>
+              <p class="text-xs font-bold text-stone-700">新手學徒</p>
+              <p class="text-[9px] text-stone-400">完成第 1 份三明治</p>
+            </div>
+            <div class="p-3 bg-white rounded-2xl border border-stone-200 text-center space-y-1" :class="diaryList.length >= 7 ? 'opacity-100' : 'opacity-40'">
+              <span class="text-2xl">🏅</span>
+              <p class="text-xs font-bold text-stone-700">七天好習慣</p>
+              <p class="text-[9px] text-stone-400">連續記錄 7 天</p>
+            </div>
+            <div class="p-3 bg-white rounded-2xl border border-stone-200 text-center space-y-1 opacity-40">
+              <span class="text-2xl">👑</span>
+              <p class="text-xs font-bold text-stone-700">米其林主廚</p>
+              <p class="text-[9px] text-stone-400">累計 30 份三明治</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 頁面 5: 設定 (Settings) ================= -->
+      <section v-if="currentTab === 'settings'" class="space-y-5">
+        <h2 class="text-base font-bold text-stone-800">系統與偏好設定</h2>
+
+        <div class="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden divide-y divide-stone-100">
+          <div class="p-4 flex items-center justify-between">
+            <div>
+              <p class="text-sm font-bold text-stone-700">每日出爐提醒</p>
+              <p class="text-xs text-stone-400">每晚 21:30 提醒記錄今日三明治</p>
+            </div>
+            <input type="checkbox" checked class="w-5 h-5 accent-bread-dark cursor-pointer">
+          </div>
+
+          <div class="p-4 flex items-center justify-between">
+            <div>
+              <p class="text-sm font-bold text-stone-700">音效回饋</p>
+              <p class="text-xs text-stone-400">食材堆疊與包裝的音效</p>
+            </div>
+            <input type="checkbox" checked class="w-5 h-5 accent-bread-dark cursor-pointer">
+          </div>
+
+          <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-stone-50" @click="exportData">
+            <div>
+              <p class="text-sm font-bold text-stone-700">匯出日記備份</p>
+              <p class="text-xs text-stone-400">以 JSON 格式下載保存所有三明治</p>
+            </div>
+            <span class="text-stone-300">›</span>
+          </div>
+
+          <div class="p-4 flex items-center justify-between cursor-pointer hover:bg-stone-50" @click="clearAllData">
+            <div>
+              <p class="text-sm font-bold text-red-600">清空所有資料</p>
+              <p class="text-xs text-stone-400">刪除冰箱裡的所有三明治（不可復原）</p>
+            </div>
+            <span class="text-red-400 text-xs">清除</span>
+          </div>
+        </div>
+
+        <div class="text-center text-xs text-stone-400 pt-4">
+          日記三明治 v1.2.0 • 療癒你的每個日常
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ================= 底部導航工具列 (5 大分頁) ================= -->
+    <nav class="fixed bottom-0 max-w-md w-full bg-white/95 backdrop-blur border-t border-stone-200/80 px-2 py-2 flex justify-around items-center z-30 shadow-lg">
+      
+      <!-- 1. 食材 -->
+      <button 
+        @click="currentTab = 'ingredients'"
+        class="flex flex-col items-center gap-1 transition flex-1 py-1"
+        :class="currentTab === 'ingredients' ? 'text-bread-dark font-bold' : 'text-stone-400'"
+      >
+        <span class="text-lg">🥬</span>
+        <span class="text-[10px]">食材</span>
+      </button>
+
+      <!-- 2. 做三明治 (首頁) -->
+      <button 
+        @click="currentTab = 'maker'"
+        class="flex flex-col items-center gap-1 transition flex-1 py-1"
+        :class="currentTab === 'maker' ? 'text-bread-dark font-bold' : 'text-stone-400'"
+      >
+        <div class="relative">
+          <span class="text-lg">🥪</span>
+          <span v-if="currentSandwich.ingredients.length > 0" class="w-2 h-2 bg-red-500 rounded-full absolute -top-0.5 -right-0.5 animate-pulse"></span>
+        </div>
+        <span class="text-[10px]">製作首頁</span>
+      </button>
+
+      <!-- 3. 日記冰箱 -->
+      <button 
+        @click="currentTab = 'fridge'"
+        class="flex flex-col items-center gap-1 transition flex-1 py-1"
+        :class="currentTab === 'fridge' ? 'text-bread-dark font-bold' : 'text-stone-400'"
+      >
+        <span class="text-lg">🧊</span>
+        <span class="text-[10px]">日記冰箱</span>
+      </button>
+
+      <!-- 4. 我的帳戶 -->
+      <button 
+        @click="currentTab = 'account'"
+        class="flex flex-col items-center gap-1 transition flex-1 py-1"
+        :class="currentTab === 'account' ? 'text-bread-dark font-bold' : 'text-stone-400'"
+      >
+        <span class="text-lg">👤</span>
+        <span class="text-[10px]">我的帳戶</span>
+      </button>
+
+      <!-- 5. 設定 -->
+      <button 
+        @click="currentTab = 'settings'"
+        class="flex flex-col items-center gap-1 transition flex-1 py-1"
+        :class="currentTab === 'settings' ? 'text-bread-dark font-bold' : 'text-stone-400'"
+      >
+        <span class="text-lg">⚙️</span>
+        <span class="text-[10px]">設定</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        // 分頁狀態: 'maker' | 'ingredients' | 'fridge' | 'account' | 'settings'
+        const currentTab = ref('maker');
+
+        // 右上角三明治點擊回首頁
+        const goHome = () => {
+          currentTab.value = 'maker';
+        };
+
+        // 心情食材定義庫
+        const availableIngredients = [
+          { id: 'lettuce', name: '平靜生菜', icon: '🥬', desc: '放鬆／充電', longDesc: '代表沉穩平靜的心境，適合在悠閒漫步、放空或獨處的日子夾入。', color: '#68B984', borderColor: '#4E9F6A' },
+          { id: 'egg', name: '確幸荷包蛋', icon: '🍳', desc: '微小治癒', longDesc: '象徵生活中的微光與暖意，比如喝到好喝的咖啡或看到夕陽。', color: '#FBC531', borderColor: '#E1AA28' },
+          { id: 'bacon', name: '忙碌培根', icon: '🥓', desc: '充實／微累', longDesc: '代表高強度、全速運轉的一天，雖然有些疲累但充滿實質產出。', color: '#E17055', borderColor: '#C8573E' },
+          { id: 'cheese', name: '溫馨起司', icon: '🧀', desc: '被愛／甜蜜', longDesc: '象徵濃厚的陪伴感，來自朋友談心、伴侶擁抱或是家人的溫情。', color: '#FFA502', borderColor: '#E58E00' },
+          { id: 'tomato', name: '活力番茄', icon: '🍅', desc: '元氣／熱情', longDesc: '酸甜多汁，代表今天動力十足、勇於嘗試新挑戰的飽滿狀態。', color: '#FF4757', borderColor: '#E03141' },
+          { id: 'chili', name: '焦躁辣醬', icon: '🌶️', desc: '挫折／壓力', longDesc: '有些辛辣、刺痛或憤怒的負面情緒，誠實地面對並將它包裹封存。', color: '#881337', borderColor: '#4C0519' },
+        ];
+
+        // 正在製作中的三明治
+        const currentSandwich = ref({
+          baseStory: '',
+          topSummary: '',
+          ingredients: []
+        });
+
+        // 冰箱日記清單
+        const diaryList = ref([]);
+        const consecutiveDays = ref(3); // 模擬連續天數
+
+        onMounted(() => {
+          const saved = localStorage.getItem('sandwich_diary_records');
+          if (saved) {
+            try {
+              diaryList.value = JSON.parse(saved);
+            } catch (e) {
+              console.error(e);
+            }
+          } else {
+            diaryList.value = [
+              {
+                id: 'demo-1',
+                date: '2026/11/11 20:30',
+                baseStory: '下午順利完成了專案簡報，之後跟同事去喝了肉桂拿鐵，聊了很久很久。',
+                topSummary: '平凡但是很溫暖的一天。',
+                ingredients: [
+                  availableIngredients[0],
+                  availableIngredients[1],
+                  availableIngredients[3]
+                ]
+              }
+            ];
+          }
+        });
+
+        const persistData = () => {
+          localStorage.setItem('sandwich_diary_records', JSON.stringify(diaryList.value));
+        };
+
+        const addIngredient = (ing) => {
+          if (currentSandwich.value.ingredients.length >= 6) {
+            alert('三明治太厚夾不下啦！（最多夾 6 片配料）');
+            return;
+          }
+          currentSandwich.value.ingredients.push({ ...ing });
+        };
+
+        const removeIngredient = (idx) => {
+          currentSandwich.value.ingredients.splice(idx, 1);
+        };
+
+        const canSave = computed(() => {
+          return currentSandwich.value.baseStory.trim().length > 0 &&
+                 currentSandwich.value.ingredients.length > 0;
+        });
+
+        const saveSandwich = () => {
+          const now = new Date();
+          const dateStr = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+          const newRecord = {
+            id: Date.now().toString(),
+            date: dateStr,
+            baseStory: currentSandwich.value.baseStory,
+            topSummary: currentSandwich.value.topSummary,
+            ingredients: [...currentSandwich.value.ingredients]
+          };
+
+          diaryList.value.unshift(newRecord);
+          persistData();
+
+          // 重設編輯區
+          currentSandwich.value.baseStory = '';
+          currentSandwich.value.topSummary = '';
+          currentSandwich.value.ingredients = [];
+
+          // 自動跳轉到冰箱
+          currentTab.value = 'fridge';
+        };
+
+        const deleteItem = (id) => {
+          if (confirm('確定要將這份三明治從冰箱清除嗎？')) {
+            diaryList.value = diaryList.value.filter(item => item.id !== id);
+            persistData();
+          }
+        };
+
+        // 匯出功能
+        const exportData = () => {
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(diaryList.value, null, 2));
+          const dlAnchor = document.createElement('a');
+          dlAnchor.setAttribute("href", dataStr);
+          dlAnchor.setAttribute("download", `sandwich_diary_${Date.now()}.json`);
+          dlAnchor.click();
+        };
+
+        const clearAllData = () => {
+          if (confirm('警告：這將會清空所有歷史日記三明治，無法恢復，確定嗎？')) {
+            diaryList.value = [];
+            persistData();
+          }
+        };
+
+        // 情緒食材統計
+        const ingredientStats = computed(() => {
+          const counts = {};
+          availableIngredients.forEach(ing => counts[ing.id] = 0);
+          let total = 0;
+
+          diaryList.value.forEach(record => {
+            record.ingredients.forEach(ing => {
+              if (counts[ing.id] !== undefined) {
+                counts[ing.id]++;
+                total++;
+              }
+            });
+          });
+
+          return availableIngredients.map(ing => {
+            const count = counts[ing.id];
+            const percentage = total === 0 ? 0 : Math.round((count / total) * 100);
+            return {
+              ...ing,
+              count,
+              percentage
+            };
+          }).sort((a, b) => b.count - a.count);
+        });
+
+        const nutritionInsight = computed(() => {
+          if (diaryList.value.length === 0) return '冰箱空空的，多記錄幾天來為自己的心情把脈吧！';
+          const top = ingredientStats.value[0];
+          if (!top || top.count === 0) return '目前情緒很均衡！';
+
+          if (top.id === 'lettuce') return '近期生菜比例最高，生活節奏很穩定愜意，繼續享受這份放鬆！🍃';
+          if (top.id === 'egg' || top.id === 'cheese') return '三明治充滿溫馨起司與荷包蛋，最近身邊充滿了愛與確幸時光！💛';
+          if (top.id === 'bacon') return '肉類攝取較多，這段時間似乎馬不停蹄，記得適時給自己放鬆充電！🥓';
+          if (top.id === 'chili') return '辣醬比例偏高，最近壓力似乎有點大，記得多深呼吸，對自己溫柔一點。🌶️';
+          return '每一片食材都代表認真活過的一天，主廚為你感到驕傲！';
+        });
+
+        const currentDateText = computed(() => {
+          const now = new Date();
+          return `${now.getMonth() + 1}月${now.getDate()}日`;
+        });
+
+        return {
+          currentTab,
+          goHome,
+          availableIngredients,
+          currentSandwich,
+          diaryList,
+          consecutiveDays,
+          addIngredient,
+          removeIngredient,
+          canSave,
+          saveSandwich,
+          deleteItem,
+          exportData,
+          clearAllData,
+          ingredientStats,
+          nutritionInsight,
+          currentDateText
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
+
